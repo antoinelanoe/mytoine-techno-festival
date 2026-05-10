@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Countdown Festival Techno</title>
+
+  <!--
+    ================================================================
+    NOTION EMBED — ce fichier est conçu pour être hébergé (GitHub
+    Pages, Netlify, Vercel…) puis intégré dans Notion via :
+      /Embed → coller l'URL HTTPS du fichier
+    ================================================================
+    Les Google Fonts sont chargées en CSS @import (plus fiable en
+    iframe que <link>). Fallback monospace si bloquées.
+    ================================================================
+  -->
+
+  <style>
+    /* Google Fonts via @import (plus robuste en iframe) */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Share+Tech+Mono&display=swap');
+
+    /* ============================================================
+       🎨  PALETTE — Tout se change ici
+       ============================================================ */
+    :root {
+      --green-core:  #7dffb2;
+      --green-glow:  #00ff88;
+      --green-soft:  #b8ffd6;
+      --pink-core:   #ff8ecf;
+      --pink-glow:   #ff2d9b;
+      --pink-soft:   #ffc3e8;
+      --bg-dark:     #080d10;
+      --text-muted:  #4a7a6a;
+      --text-label:  #8affd1;
+    }
+
+    /* ============================================================
+       RESET — pas de marges parasites dans l'iframe
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      /* Hauteur fixe : ajuster selon la hauteur du bloc Notion      */
+      /* Notion permet de redimensionner l'iframe, viser ~480-560px  */
+      height: 100%;
+    }
+
+    body {
+      min-height: 100%;
+      font-family: 'Orbitron', 'Courier New', monospace;
+      background: var(--bg-dark);
+      color: var(--green-soft);
+      overflow: hidden;   /* pas de scrollbar dans l'iframe */
+    }
+
+    /* ============================================================
+       CANVAS BACKGROUND
+       ============================================================ */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+    }
+
+    /* ============================================================
+       SCANLINES + VIGNETTE
+       ============================================================ */
+    .scanlines {
+      position: fixed; inset: 0; z-index: 1; pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent, transparent 3px,
+        rgba(0,0,0,0.1) 3px, rgba(0,0,0,0.1) 4px
+      );
+    }
+    .vignette {
+      position: fixed; inset: 0; z-index: 2; pointer-events: none;
+      background: radial-gradient(ellipse at center,
+        transparent 35%, rgba(0,0,0,0.75) 100%
+      );
+    }
+
+    /* ============================================================
+       LAYOUT — flex colonne centré, padding compact pour iframe
+       ============================================================ */
+    .stage {
+      position: relative;
+      z-index: 10;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: clamp(0.8rem, 2.5vh, 1.8rem);
+      padding: clamp(1rem, 3vh, 2rem) 1.5rem;
+    }
+
+    /* ============================================================
+       HEADER
+       ============================================================ */
+    .header { text-align: center; animation: fadeIn 1s ease both; }
+
+    .header__eyebrow {
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      font-size: clamp(0.55rem, 1.2vw, 0.75rem);
+      letter-spacing: 0.3em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+
+    .header__title {
+      font-size: clamp(1.3rem, 4.5vw, 2.4rem);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      line-height: 1;
+      background: linear-gradient(90deg, var(--green-core), var(--pink-core));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 6px var(--green-glow));
+      animation: titlePulse 4s ease-in-out infinite;
+    }
+
+    /* ============================================================
+       COUNTDOWN GRID
+       ============================================================ */
+    .countdown {
+      display: flex;
+      gap: clamp(0.5rem, 2vw, 1.5rem);
+      align-items: center;
+      animation: fadeIn 1.2s ease both 0.2s;
+    }
+
+    .sep {
+      font-size: clamp(1.6rem, 5vw, 3.5rem);
+      font-weight: 900;
+      color: var(--green-core);
+      opacity: 0.35;
+      padding-bottom: 1.2rem;
+      animation: blink 1s step-end infinite;
+    }
+
+    .unit { display: flex; flex-direction: column; align-items: center; gap: 0.4rem; }
+
+    .unit__card {
+      position: relative;
+      width:  clamp(64px, 12vw, 120px);
+      height: clamp(64px, 12vw, 120px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid;
+      border-radius: 3px;
+    }
+
+    /* Vert / Rose en alternance */
+    .unit:nth-child(1) .unit__card,
+    .unit:nth-child(5) .unit__card,
+    .unit:nth-child(9) .unit__card {
+      border-color: var(--green-core);
+      box-shadow:
+        0 0 6px var(--green-glow),
+        0 0 18px rgba(0,255,136,.2),
+        inset 0 0 6px rgba(0,255,136,.06);
+    }
+    .unit:nth-child(3) .unit__card,
+    .unit:nth-child(7) .unit__card {
+      border-color: var(--pink-core);
+      box-shadow:
+        0 0 6px var(--pink-glow),
+        0 0 18px rgba(255,45,155,.2),
+        inset 0 0 6px rgba(255,45,155,.06);
+    }
+
+    /* Coins décoratifs */
+    .unit__card::before, .unit__card::after {
+      content: ''; position: absolute;
+      width: 8px; height: 8px;
+      border-color: inherit; border-style: solid;
+    }
+    .unit__card::before { top:-1px; left:-1px;   border-width: 2px 0 0 2px; }
+    .unit__card::after  { bottom:-1px; right:-1px; border-width: 0 2px 2px 0; }
+
+    .unit__num {
+      font-size: clamp(1.6rem, 6vw, 4rem);
+      font-weight: 900;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .unit:nth-child(1) .unit__num,
+    .unit:nth-child(5) .unit__num,
+    .unit:nth-child(9) .unit__num {
+      color: var(--green-soft);
+      text-shadow: 0 0 6px var(--green-glow), 0 0 30px rgba(0,255,136,.35);
+    }
+    .unit:nth-child(3) .unit__num,
+    .unit:nth-child(7) .unit__num {
+      color: var(--pink-soft);
+      text-shadow: 0 0 6px var(--pink-glow), 0 0 30px rgba(255,45,155,.35);
+    }
+
+    .unit__label {
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      font-size: clamp(0.5rem, 1vw, 0.65rem);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      color: var(--text-label);
+      opacity: 0.55;
+    }
+
+    /* Flip animation */
+    .flip { animation: flipNum 0.35s cubic-bezier(.4,0,.2,1); }
+
+    /* ============================================================
+       DATE CIBLE
+       ============================================================ */
+    .target-date {
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      font-size: clamp(0.55rem, 1.3vw, 0.75rem);
+      letter-spacing: 0.28em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      animation: fadeIn 1.4s ease both 0.4s;
+    }
+    .target-date span { color: var(--green-core); opacity: 0.85; }
+
+    /* ============================================================
+       BARRE DE PROGRESSION
+       ============================================================ */
+    .progress-wrap {
+      width: min(480px, 82vw);
+      animation: fadeIn 1.5s ease both 0.5s;
+    }
+    .progress-bar {
+      height: 2px;
+      background: rgba(255,255,255,.05);
+      border-radius: 2px;
+      overflow: visible;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, var(--green-glow), var(--pink-glow));
+      box-shadow: 0 0 8px var(--green-glow), 0 0 18px rgba(0,255,136,.3);
+      transition: width 1s linear;
+      position: relative;
+    }
+    .progress-fill::after {
+      content: '';
+      position: absolute; right: -3px; top: -3px;
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--pink-core);
+      box-shadow: 0 0 10px var(--pink-glow), 0 0 20px var(--pink-glow);
+    }
+    .progress-label {
+      display: flex; justify-content: space-between;
+      margin-top: 0.45rem;
+      font-family: 'Share Tech Mono', 'Courier New', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.18em;
+      color: var(--text-muted);
+    }
+
+    /* ============================================================
+       KEYFRAMES
+       ============================================================ */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes blink {
+      0%,100% { opacity: 0.35; } 50% { opacity: 0; }
+    }
+    @keyframes titlePulse {
+      0%,100% { filter: drop-shadow(0 0 6px  var(--green-glow)); }
+      50%      { filter: drop-shadow(0 0 14px var(--pink-glow)); }
+    }
+    @keyframes flipNum {
+      0%   { transform: rotateX(-90deg) scaleY(.6); opacity: 0; }
+      60%  { transform: rotateX(10deg); opacity: 1; }
+      100% { transform: rotateX(0deg);  opacity: 1; }
+    }
+    @keyframes glitchAnim {
+      0%   { clip-path: inset(10% 0 80% 0); transform: translateX(-5px); }
+      33%  { clip-path: inset(50% 0 20% 0); transform: translateX(5px);  }
+      66%  { clip-path: inset(30% 0 50% 0); transform: translateX(-3px); }
+      100% { clip-path: none; transform: translateX(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="bg-canvas"></canvas>
+  <div class="scanlines"></div>
+  <div class="vignette"></div>
+
+  <main class="stage">
+
+    <header class="header" id="main-header">
+      <p class="header__eyebrow">// 30 ANS &nbsp;|&nbsp; Myriam &amp; Antoine //</p>
+      <h1 class="header__title" id="title-text">Mytoine Techno Festival</h1>
+    </header>
+
+    <div class="countdown">
+      <div class="unit">
+        <div class="unit__card"><span class="unit__num" id="days">00</span></div>
+        <span class="unit__label">J</span>
+      </div>
+      <span class="sep">:</span>
+      <div class="unit">
+        <div class="unit__card"><span class="unit__num" id="hours">00</span></div>
+        <span class="unit__label">H</span>
+      </div>
+      <span class="sep">:</span>
+      <div class="unit">
+        <div class="unit__card"><span class="unit__num" id="minutes">00</span></div>
+        <span class="unit__label">M</span>
+      </div>
+      <span class="sep">:</span>
+      <div class="unit">
+        <div class="unit__card"><span class="unit__num" id="seconds">00</span></div>
+        <span class="unit__label">S</span>
+      </div>
+    </div>
+
+    <p class="target-date">
+      Rendez-vous le <span>25 Juillet 2026</span>
+    </p>
+
+    <div class="progress-wrap">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill" style="width:0%"></div>
+      </div>
+      <div class="progress-label">
+        <span>01/01/26</span>
+        <span id="progress-pct">0%</span>
+        <span>25/07/26 12:00</span>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    /* ===========================================================
+       TARGET : 25 juillet 2026, 12h00 Paris (= 10h00 UTC, été)
+       =========================================================== */
+    const TARGET = new Date('2026-07-25T10:00:00Z');
+    const ORIGIN = new Date('2026-01-01T00:00:00Z');
+
+    const pad = n => String(Math.max(0, n)).padStart(2, '0');
+    const $   = id => document.getElementById(id);
+
+    let prev = { d:-1, h:-1, m:-1, s:-1 };
+
+    function tick() {
+      const now  = Date.now();
+      const diff = TARGET.getTime() - now;
+
+      if (diff <= 0) {
+        ['days','hours','minutes','seconds'].forEach(id => $(id).textContent = '00');
+        $('title-text').textContent = '🎉 C\'est l\'heure !';
+        return;
+      }
+
+      const d = Math.floor(diff / 86400000);
+      const h = Math.floor((diff % 86400000) / 3600000);
+      const m = Math.floor((diff % 3600000)  / 60000);
+      const s = Math.floor((diff % 60000)    / 1000);
+
+      flip('days',    pad(d), d !== prev.d);
+      flip('hours',   pad(h), h !== prev.h);
+      flip('minutes', pad(m), m !== prev.m);
+      flip('seconds', pad(s), true);
+      prev = { d, h, m, s };
+
+      const total   = TARGET.getTime() - ORIGIN.getTime();
+      const elapsed = now - ORIGIN.getTime();
+      const pct     = Math.min(100, Math.max(0, elapsed / total * 100));
+      $('progress-fill').style.width = pct.toFixed(3) + '%';
+      $('progress-pct').textContent  = pct.toFixed(1) + '%';
+    }
+
+    function flip(id, val, changed) {
+      const el = $(id);
+      if (changed && el.textContent !== val) {
+        el.textContent = val;
+        el.classList.remove('flip');
+        void el.offsetWidth;
+        el.classList.add('flip');
+      }
+    }
+
+    /* Glitch aléatoire sur le titre */
+    const header = $('main-header');
+    function randomGlitch() {
+      header.style.animation = 'glitchAnim 0.15s steps(2,end)';
+      setTimeout(() => header.style.animation = '', 200);
+      setTimeout(randomGlitch, 5000 + Math.random() * 9000);
+    }
+    setTimeout(randomGlitch, 4000);
+
+    /* ===========================================================
+       CANVAS — grille perspective + particules
+       =========================================================== */
+    (function() {
+      const canvas = $('bg-canvas');
+      const ctx    = canvas.getContext('2d');
+      const CS     = getComputedStyle(document.documentElement);
+      const GREEN  = CS.getPropertyValue('--green-glow').trim();
+      const PINK   = CS.getPropertyValue('--pink-glow').trim();
+
+      function resize() {
+        canvas.width  = window.innerWidth;
+        canvas.height = window.innerHeight;
+      }
+      window.addEventListener('resize', resize);
+      resize();
+
+      const NP = 60;
+      const pts = Array.from({ length: NP }, () => newPt());
+
+      function newPt() {
+        return {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: Math.random() * 1.8 + 0.4,
+          vx: (Math.random() - .5) * .35,
+          vy: (Math.random() - .5) * .35,
+          color: Math.random() > .5 ? GREEN : PINK,
+          alpha: Math.random() * .55 + .15,
+          pulse: Math.random() * Math.PI * 2,
+        };
+      }
+
+      let t = 0;
+      function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        t += 0.013;
+        const W = canvas.width, H = canvas.height;
+        const hz = H * .5, vx = W / 2;
+        const COLS = 12, ROWS = 10;
+
+        /* Grille */
+        ctx.save();
+        ctx.globalAlpha = 0.11;
+        for (let c = 0; c <= COLS; c++) {
+          const f = c / COLS;
+          ctx.beginPath();
+          ctx.moveTo(vx + (f - .5) * W * .4, hz);
+          ctx.lineTo(f * W, H + 60);
+          ctx.strokeStyle = c % 2 === 0 ? GREEN : PINK;
+          ctx.lineWidth = .7;
+          ctx.stroke();
+        }
+        for (let r = 0; r <= ROWS; r++) {
+          const sp = ((t * .5 + r / ROWS) % 1);
+          const yf = Math.pow(sp, 1.5);
+          const y  = hz + (H + 60 - hz) * yf;
+          ctx.beginPath();
+          ctx.moveTo(vx + (0 - .5) * W * .4 * (1 - yf),  y);
+          ctx.lineTo(vx + (1 - .5) * W * .4 * (1 - yf) + W * yf, y);
+          ctx.strokeStyle = r % 3 === 0 ? PINK : GREEN;
+          ctx.lineWidth = .65;
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        /* Particules */
+        for (const p of pts) {
+          p.x += p.vx; p.y += p.vy; p.pulse += .03;
+          if (p.x < 0 || p.x > W || p.y < 0 || p.y > H) Object.assign(p, { ...newPt(), x: Math.random()*W, y: Math.random()*H });
+          ctx.save();
+          ctx.globalAlpha = p.alpha * (.7 + .3 * Math.sin(p.pulse));
+          ctx.shadowBlur  = 10; ctx.shadowColor = p.color;
+          ctx.fillStyle   = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        requestAnimationFrame(draw);
+      }
+      draw();
+    })();
+
+    tick();
+    setInterval(tick, 1000);
+  </script>
+</body>
+</html>
